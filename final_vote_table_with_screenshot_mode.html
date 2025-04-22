@@ -67,7 +67,7 @@
             cursor: pointer;
         }
     </style>
-    
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>       
     <script>
         function toggleScreenshotMode() {
             document.body.classList.toggle('screenshot');
@@ -114,6 +114,16 @@
                 td.innerHTML = '<span class="verdict">가결</span>';
             }
         }
+        function captureScreenshot() {
+    document.body.classList.add("screenshot"); // 버튼 숨김
+    html2canvas(document.querySelector("table")).then(canvas => {
+        const link = document.createElement("a");
+        link.download = "vote_screenshot.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        document.body.classList.remove("screenshot"); // 원상복구
+    });
+}
 
         function editTitle() {
             const current = document.getElementById("title-text").innerText;
@@ -240,6 +250,7 @@
 </table>
 
 <button onclick="toggleScreenshotMode()" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">스크린샷 모드</button>
+    <button onclick="captureScreenshot()" style="position: fixed; top: 10px; right: 130px;">스크린샷 저장</button>
 </body>
 
 </html>
