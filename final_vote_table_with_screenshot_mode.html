@@ -93,13 +93,11 @@
                 count.total++;
                 if (c.classList.contains('lime')) count.lime++;
                 else if (c.classList.contains('red')) count.red++;
-                else if (c.classList.contains('yellow')) count.yellow++;
             });
 
             document.getElementById('total-count').innerText = count.total;
             document.getElementById('yes-count').innerText = count.lime;
             document.getElementById('no-count').innerText = count.red;
-            document.getElementById('abstain-count').innerText = count.yellow;
             document.getElementById('present-count').innerText = count.lime + count.red;
         }
 
