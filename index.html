@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -52,16 +53,17 @@
   <div class="ctrl-grid" id="ctrl-grid"></div>
 
   <script>
+    // 상태(지위) 속성 추가
     const members = [
-      { name:'돌돔',     seats:18, baseColor:'#FFFFFF' },
-      { name:'페터',     seats:15, baseColor:'#02BB71' },
-      { name:'여명',     seats:7,  baseColor:'#D7003A' },
-      { name:'라인란트', seats:25, baseColor:'#FFCC00' },
-      { name:'피바',     seats:11, baseColor:'#E61E2B' },
-      { name:'엔디미온', seats:8,  baseColor:'#2743D2' },
-      { name:'브뤼메르', seats:8,  baseColor:'#003f88' },
-      { name:'이나경',   seats:8,  baseColor:'#9EC828' },
-      { name:'케이비',   seats:1,  baseColor:'#aa88ff' },
+      { name:'돌돔',     seats:18, baseColor:'#FFFFFF', status:'총리' },
+      { name:'페터',     seats:15, baseColor:'#02BB71', status:'평의원' },
+      { name:'여명',     seats:7,  baseColor:'#D7003A', status:'평의원' },
+      { name:'피바',     seats:11, baseColor:'#E61E2B', status:'평의원' },
+      { name:'엔디미온', seats:8,  baseColor:'#2743D2', status:'평의원' },
+      { name:'이나경',   seats:8,  baseColor:'#9EC828', status:'평의원' },
+      { name:'브뤼메르', seats:8,  baseColor:'#003f88', status:'평의원' },
+      { name:'라인란트', seats:25, baseColor:'#FFCC00', status:'의장' },
+      { name:'케이비',   seats:1,  baseColor:'#aa88ff', status:'국부' },
     ];
 
     const voteState = {};
@@ -70,55 +72,98 @@
     const CX = 350, CY = 380;
     const ARC_START = Math.PI * 1.1;
     const ARC_END   = Math.PI * 1.9;
-    const DOT_R = 10;
     const ROW_GAP = 32;
     const R_MIN = 130;
 
     let isScreenshotMode = false;
 
     function getDotColor(member) {
+      if (!member) return '#222';
       const v = voteState[member.name];
       if (v === 'lime') return '#00dd00';
       if (v === 'red')  return '#ff4444';
       return '#555';
     }
 
-    function buildSlots(totalSeats) {
-      const slots = [];
-      const numCols = 14;
-      for (let col = 0; col < numCols; col++) {
-        const frac = col / (numCols - 1);
-        const angle = ARC_START + frac * (ARC_END - ARC_START);
-        const seatsInCol = (col === 0 || col === 13) ? 2 : 8;
-        for (let row = 0; row < seatsInCol; row++) {
-          const r = R_MIN + row * ROW_GAP;
-          const x = CX + r * Math.cos(angle);
-          const y = CY + r * Math.sin(angle);
-          slots.push({ x, y });
-        }
-      }
-      slots.push({ x: CX, y: CY - 60 });
-      return slots;
+    function drawCircle(svg, x, y, r, fill) {
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', x.toFixed(1));
+      circle.setAttribute('cy', y.toFixed(1));
+      circle.setAttribute('r', r);
+      circle.setAttribute('fill', fill);
+      circle.setAttribute('stroke', '#0a0a0a');
+      circle.setAttribute('stroke-width', '1.5');
+      // 트랜지션 효과 추가 (부드러운 색상 변경)
+      circle.style.transition = 'fill 0.3s ease';
+      svg.appendChild(circle);
     }
 
     function render() {
       const svg = document.getElementById('svg');
       svg.innerHTML = '';
-      const memberQueue = [];
-      members.forEach(m => { for (let i = 0; i < m.seats; i++) memberQueue.push(m); });
-      const slots = buildSlots(memberQueue.length);
-      memberQueue.forEach((member, i) => {
-        const s = slots[i];
-        if (!s) return;
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', s.x.toFixed(1));
-        circle.setAttribute('cy', s.y.toFixed(1));
-        circle.setAttribute('r', DOT_R);
-        circle.setAttribute('fill', getDotColor(member));
-        circle.setAttribute('stroke', '#0a0a0a');
-        circle.setAttribute('stroke-width', '1.5');
-        svg.appendChild(circle);
+
+      const normalQueue = [];
+      const specialMembers = { '총리': null, '국부': null, '의장': null };
+
+      // 의석 분리: 주요 직책은 1석을 빼서 중앙용으로 보관하고, 나머지는 일반 큐에 넣음
+      members.forEach(m => {
+        let seatsToQueue = m.seats;
+        if (m.status === '총리' || m.status === '국부' || m.status === '의장') {
+          specialMembers[m.status] = m;
+          seatsToQueue--; // 지정석 1석 제외
+        }
+        for (let i = 0; i < seatsToQueue; i++) {
+          normalQueue.push(m);
+        }
       });
+
+      // 1. 일반 98석 배치 (14열 x 7행)
+      const numCols = 14;
+      const seatsInCol = 7;
+      let queueIndex = 0;
+
+      for (let col = 0; col < numCols; col++) {
+        const frac = col / (numCols - 1);
+        const angle = ARC_START + frac * (ARC_END - ARC_START);
+        
+        for (let row = 0; row < seatsInCol; row++) {
+          if (queueIndex >= normalQueue.length) break;
+          const member = normalQueue[queueIndex++];
+          
+          const r = R_MIN + row * ROW_GAP;
+          const x = CX + r * Math.cos(angle);
+          const y = CY + r * Math.sin(angle);
+          
+          drawCircle(svg, x, y, 10, getDotColor(member));
+        }
+      }
+
+      // 2. 중앙 3석 배치 (총리, 국부, 의장)
+      const centerSlots = [
+        { role: '총리', x: CX - 60, y: CY - 30 },
+        { role: '국부', x: CX,      y: CY - 30 },
+        { role: '의장', x: CX + 60, y: CY - 30 }
+      ];
+
+      centerSlots.forEach(slot => {
+        const member = specialMembers[slot.role];
+        const color = getDotColor(member);
+        
+        // 중앙석은 크기를 조금 더 크게 (r=14)
+        drawCircle(svg, slot.x, slot.y, 14, color);
+
+        // 직책 텍스트
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', slot.x);
+        text.setAttribute('y', slot.y + 26);
+        text.setAttribute('fill', '#aaa');
+        text.setAttribute('font-size', '11px');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-weight', 'bold');
+        text.textContent = slot.role;
+        svg.appendChild(text);
+      });
+
       updateCounts();
       renderControls();
     }
@@ -130,11 +175,15 @@
         const v = voteState[m.name];
         const statusColor = v === 'lime' ? '#00dd00' : v === 'red' ? '#ff4444' : '#cc9900';
         const statusLabel = v === 'lime' ? '찬성' : v === 'red' ? '반대' : '불출석';
+        
+        // 컨트롤 패널에 지위 표시 추가
+        const roleText = m.status !== '평의원' ? `[${m.status}] ` : '';
+        
         const d = document.createElement('div');
         d.className = 'mcard';
         d.innerHTML = `
           <div class="mn" style="color:${m.baseColor};font-weight:bold">${m.name}</div>
-          <div class="mn" style="color:#888">${m.seats}석 <span style="color:${statusColor};font-weight:bold">${statusLabel}</span></div>
+          <div class="mn" style="color:#888">${roleText}${m.seats}석 <span style="color:${statusColor};font-weight:bold">${statusLabel}</span></div>
           <div class="vote-btns">
             <button class="btn-yes" onclick="vote('${m.name}','lime')">찬성</button>
             <button class="btn-no"  onclick="vote('${m.name}','red')">반대</button>
